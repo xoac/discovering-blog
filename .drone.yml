@@ -2,6 +2,10 @@ pipeline:
   build:
     image: jekyll/jekyll
     commands:
+      - touch Gemfile.lock
+      - chmod a+w Gemfile.lock
+      - chown -R jekyll:jekyll /drone
+      - gem install bundler
       - bundle install
       - bundle exec jekyll build
     branches: master
