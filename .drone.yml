@@ -1,0 +1,17 @@
+pipeline:
+  build:
+    image: jekyll/jekyll
+    commands:
+      - bundle install
+      - bundle exec jekyll build
+    branches: master
+
+  deploy:
+    image: drillster/drone-rsync
+    hosts: [ "blog.sdr.ovh" ]
+    user: sylwek
+    source: _site
+    target: ~/blog/public
+    recursive: true
+    delete: true
+    secrets: [ plugin_key ]
