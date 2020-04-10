@@ -106,7 +106,7 @@ url-pretty: "discovering.sdr.ovh"  # eg. "deanattali.com/beautiful-jekyll"
 
 matomo:
   site_id: "1"
-  uri: "https://matomo.sdr.ovh/"
+  uri: "matomo.sdr.ovh"
 #  opt-out: true
 
 # --- Comments --- #
