@@ -8,11 +8,11 @@ image: /img/hello_world.jpeg
 
 I was trying to escape some chars (` `, `=`, `,`). This chars should be escaped in [influx db line protocol](https://v2.docs.influxdata.com/v2.0/reference/syntax/line-protocol/#special-characters)
 
-First what I have done was to search [String doc] but there is only [replace] method.
+First what I have done was to search [String doc] but there is only [replace] method. So I have decided to implement it manually.
 
 **First implementation**
 
-Great! Using [replace] we can easily build our first implementation:
+Great! Using [replace] from std we can easily build our first implementation:
 ```rust
 #[inline]
 fn escape_with_replace(s: &String) -> String {
@@ -21,7 +21,7 @@ fn escape_with_replace(s: &String) -> String {
         .replace(" ", r#"\ "#)
 }
 ```
-Hym.. Rust is zero cost abstraction language - but [`String::replace`] take `&self` so it need to copy this tree times. Or maybe it can optimize it?
+Hym.. Rust is zero cost abstraction language - but [`String::replace`] take `&self` so it need to copy this tree times. Or maybe it is able to optimize it?
 **Let's find out.**
 
 ## Benchmarking
@@ -32,13 +32,14 @@ const NO_ESCAPE: &str = r#"Abcdefghijklmnouódsałπ≠²³4tonżðąq"#;
 const TO_ESCAPE: &str = r#"asdddas\  =d =das=sddsałπ≠²³4tonż"#;
 ```
 
-We also need to compare our implementation again something. On stack overflow is [answer](https://stackoverflow.com/a/34606128/5190508) that explain can replace patterns with regex. We used this implementation in `no_escpae_regex` and `to_escape_regex` bench function.
+We also need to compare our implementation again something. On stack overflow is [answer](https://stackoverflow.com/a/34606128/5190508) that explain how replace patterns with regex. We used this implementation in `no_escpae_regex` and `to_escape_regex` bench function.
 
 We use some name convention for bench functions:
-- bench function that start with `no_escape` will use `NO_ESCAPE` const value to test escaping impl. And there is no need to escape chars.
-- bench function that start with `to_escape` will use `TO_ESCAPE` const value to test escaping impl. There are chars that need to be escaped.
+- bench function that start with `no_escape` will use `NO_ESCAPE` const value to test escaping impl. Test version without escaping.
+- bench function that start with `to_escape` will use `TO_ESCAPE` const value to test escaping impl. Test version with escaping.
 
 ```
+// #[bench] is only available on nightly
 #[cfg(all(feature = "nightly", test))]
 mod bench {
     const NO_ESCAPE: &str = r#"Abcdefghijklmnouódsałπ≠²³4tonżðąq"#;
@@ -83,7 +84,7 @@ test escape::bench::to_escape_regex                ... bench:         990 ns/ite
 test escape::bench::no_escape_std_replace          ... bench:         279 ns/iter (+/- 27)
 test escape::bench::to_escape_std_replace          ... bench:         560 ns/iter (+/- 37)
 ```
-So our implementation is ~2 times better in escaping but make 2.5 times worse in **no escape** scenario compare to regex. That is unacceptable  as escape case would be rather rare.
+So our implementation is ~2 times better in escaping but make 2.5 times worse in **no escape** scenario compare to regex. That is unacceptable as escape case would be rather rare.
 
 ## So let's just call replace only if needed (second impl)
 ```
@@ -134,7 +135,7 @@ fn escape_map_collect(s: String) {
         .collect()
 }
 ```
-Unfortunately code above do not compile.
+Unfortunately code above does not compile.
 
 So we can't change from [char] to [&str]. But we could use [`push_str`] and [`push`] methods.
 
@@ -292,7 +293,7 @@ where
 }
 ```
 
-Will generated version will be as good as our `escape_find_push2()`? Of course - Rust is zero cost abstraction!
+Will generated version be as good as our `escape_find_push2()`? Of course - Rust is zero cost abstraction!
 
 But let's bench it!
 ```
@@ -384,6 +385,8 @@ And bench results:
 test escape::bench::no_escape_std_replace2         ... bench:         134 ns/iter (+/- 13)
 test escape::bench::to_escape_std_replace2         ... bench:         401 ns/iter (+/- 34)
 ```
+
+If I would found it earlier I will not write this blog post since std version is good enough!.
 
 
 [String doc]:https://doc.rust-lang.org/std/string/struct.String.html

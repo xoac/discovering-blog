@@ -15,7 +15,7 @@ pipeline:
     hosts: [ "blog.sdr.ovh" ]
     user: sylwek
     source: _site
-    target: ~/blog/public
+    target: ~/discovering-blog/public
     recursive: true
     delete: true
     secrets: [ plugin_key ]
