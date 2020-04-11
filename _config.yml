@@ -21,6 +21,9 @@ description: Learning Rust 🦀 and English!
 # List of links in the navigation bar
 navbar-links:
   About Me: "aboutme"
+  Resources:
+    - 🦀 Cheat Sheet: https://cheats.rs/
+    - Template for crates-io lib: https://github.com/xoac/crates-io-lib-template
 
 # Image to show in the navigation bar - image must be a square (width = height)
 # Remove this parameter if you don't want an image in the navbar

@@ -1,6 +1,8 @@
 ---
 layout: post
-title: replace_all method in rust String
+title: escape method in rust
+subtitle: Benchmarking on nightly std::String::replace vs regex vs own implementation
+tags: [benchmarks, rust]
 image: /img/hello_world.jpeg
 ---
 
