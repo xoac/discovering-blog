@@ -3,7 +3,7 @@ layout: post
 title: escape method in rust
 subtitle: Benchmarking on nightly std::String::replace vs regex vs own implementation
 tags: [benchmarks, rust]
-image: /img/hello_world.jpeg
+image: /img/escape.png
 ---
 
 ## Beginning
@@ -77,7 +77,9 @@ mod bench {
     }
 }
 ```
-Guess which implementation do better!
+
+<details>
+<summary> Guess which implementation do better! </summary>
 
 ```
 test escape::bench::no_escpae_regex                ... bench:         104 ns/iter (+/- 8)
@@ -87,6 +89,7 @@ test escape::bench::no_escape_std_replace          ... bench:         279 ns/ite
 test escape::bench::to_escape_std_replace          ... bench:         560 ns/iter (+/- 37)
 ```
 So our implementation is ~2 times better in escaping but make 2.5 times worse in **no escape** scenario compare to regex. That is unacceptable as escape case would be rather rare.
+</details>
 
 ## So let's just call replace only if needed (second impl)
 ```
@@ -171,7 +174,12 @@ fn escape_find_push_uo(s: &String) -> String {
 }
 ```
 
-Let _optimize_ this a little. We can use value returned by [`String::find`] function to start replacing from that char.
+Let _optimize_ this a little. We can use value returned by [`String::find`] function to start replacing from that char. Be careful when you work with Strings:
+
+> Returns the **byte index** of the **first character** of this string slice that matches the pattern.
+
+[`"🦀aa"[1..1]` will not return `"a"`](https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=45b840e6fdb9ddfc9fa7f47bc3fdb47e)
+
 ```rust
 #[inline]
 fn escape_find_push(s: &String) -> String {
@@ -184,7 +192,7 @@ fn escape_find_push(s: &String) -> String {
     if let Some(begin) = opt_begin {
         let mut escaped_string = String::with_capacity(s.len() + 8);
         escaped_string.push_str(&s[..begin]); // from 0 to first item(without it)
-        for c in s[begin..].chars() { // skip copied chars
+        for c in s[begin..].chars() { // skip copied chars - `s.chars.skip(begin)` would be incorecct!!!
             match c {
                 '=' => escaped_string.push_str(r#"\="#),
                 ',' => escaped_string.push_str(r#"\,"#),
@@ -199,7 +207,8 @@ fn escape_find_push(s: &String) -> String {
 }
 ```
 
-And add the benches:
+<details>
+<summary> And add the benches: </summary>
 
 ```
     // skip rest of bench (..)
@@ -227,8 +236,10 @@ And add the benches:
         b.iter(|| escape_find_push(&s))
     }
 ```
+</details>
 
-Guess the results!
+<details>
+<summary> Guess the bench results! </summary>
 ```
 test escape::bench::no_escape_std_find_push_uo     ... bench:          68 ns/iter (+/- 6)
 test escape::bench::to_escape_std_find_push_uo     ... bench:         229 ns/iter (+/- 21)
@@ -236,6 +247,7 @@ test escape::bench::to_escape_std_find_push_uo     ... bench:         229 ns/ite
 test escape::bench::no_escape_find_push            ... bench:          84 ns/iter (+/- 5)
 test escape::bench::to_escape_find_push            ... bench:         204 ns/iter (+/- 38)
 ```
+</details>
 
 Oh so we are doing slightly better in **no escape** scenario than regex and ~11 times better in **escape scenario**. That's great!
 
@@ -362,14 +374,14 @@ test escape::bench::to_escape_general              ... bench:         202 ns/ite
 
 ### Conclusions
 
-- `replace()` called many times in a row is not optimal. What make me a little surprised - since replace is `#[inline]` according to doc.
+- `replace()` called many times in a row is ~~not~~ optimal. ~~What make me a little surprised - since it is marked with`#[inline]` according to doc.~~ See edit.
 - it's quite easy to implement own escape function with just std
-- in my personal opinion `escape<P>` with `|c| match c {..}` closure is more readable. (You don't need to be familiar with regex).
--
+- in my personal opinion `escape<P>` with `|c| match c {..}` closure is more readable than calling many times replace. And easier if you aren't familiar with regex.
 
 
 ## Edit
-Two days later I discovered that implementation of `no_escpe_std_replace` and `to_escpe_std_replace` wasn't done correct. Can you found how we can make it better?;
+<details>
+<summary> Two days later I discovered that implementation of `no_escpe_std_replace` and `to_escpe_std_replace` wasn't done correct. Can you found how we can make it better?; </summary>
 
 ```
 #[inline]
@@ -389,8 +401,13 @@ test escape::bench::to_escape_std_replace2         ... bench:         401 ns/ite
 ```
 
 If I would found it earlier I will not write this blog post since std version is good enough!.
+</details>
 
 
 [String doc]:https://doc.rust-lang.org/std/string/struct.String.html
 [replace]:https://doc.rust-lang.org/std/string/struct.String.html#method.replace
-
+[char]:https://doc.rust-lang.org/std/primitive.char.html
+[&str]:https://doc.rust-lang.org/std/primitive.str.html
+[`push_str`]:https://doc.rust-lang.org/std/string/struct.String.html#method.push_str
+[`push`]:https://doc.rust-lang.org/std/string/struct.String.html#method.push
+[`String::find`]:https://doc.rust-lang.org/std/string/struct.String.html#method.find
