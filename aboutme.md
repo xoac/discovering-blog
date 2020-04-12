@@ -12,3 +12,6 @@ You can find me on [github](https://github.com/xoac/).
 
 In free time I play boardgames. I like hitchhiking (you can meet interesting people). A good place where you can find open minded people is [couchserfing](https://www.couchsurfing.com/). If you know a place where people play charades online write me about it!
 
+- - -
+
+Source code of this blog is available [here](https://github.com/xoac/discovering-blog/). You can report there mistakes from this site. Blog posts are inside `_post` folder.

@@ -10,9 +10,9 @@ image: /img/escape.png
 
 I was trying to escape some chars (` `, `=`, `,`). This chars should be escaped in [influx db line protocol](https://v2.docs.influxdata.com/v2.0/reference/syntax/line-protocol/#special-characters)
 
-First what I have done was to search [String doc] but there is only [replace] method. So I have decided to implement it manually.
+First what I have done was to go through [String doc] where I found only [replace] method. So I have decided to implement escape manually.
 
-**First implementation**
+### First implementation
 
 Great! Using [replace] from std we can easily build our first implementation:
 ```rust
@@ -26,9 +26,9 @@ fn escape_with_replace(s: &String) -> String {
 Hym.. Rust is zero cost abstraction language - but [`String::replace`] take `&self` so it need to copy this tree times. Or maybe it is able to optimize it?
 **Let's find out.**
 
-## Benchmarking
+#### Benchmarking
 
-To measure our implementations we will use this two str.
+To measure our implementations we will use this two constants str.
 ```
 const NO_ESCAPE: &str = r#"Abcdefghijklmnouódsałπ≠²³4tonżðąq"#;
 const TO_ESCAPE: &str = r#"asdddas\  =d =das=sddsałπ≠²³4tonż"#;
@@ -36,11 +36,11 @@ const TO_ESCAPE: &str = r#"asdddas\  =d =das=sddsałπ≠²³4tonż"#;
 
 We also need to compare our implementation again something. On stack overflow is [answer](https://stackoverflow.com/a/34606128/5190508) that explain how replace patterns with regex. We used this implementation in `no_escpae_regex` and `to_escape_regex` bench function.
 
-We use some name convention for bench functions:
-- bench function that start with `no_escape` will use `NO_ESCAPE` const value to test escaping impl. Test version without escaping.
-- bench function that start with `to_escape` will use `TO_ESCAPE` const value to test escaping impl. Test version with escaping.
+The name convention for bench functions:
+- bench function that start with `no_escape` will use `NO_ESCAPE` const value to test escaping impl.
+- bench function that start with `to_escape` will use `TO_ESCAPE` const value to test escaping impl.
 
-```
+```rust
 // #[bench] is only available on nightly
 #[cfg(all(feature = "nightly", test))]
 mod bench {
@@ -78,8 +78,7 @@ mod bench {
 }
 ```
 
-<details>
-<summary> Guess which implementation do better! </summary>
+Guess which implementation do better!
 
 ```
 test escape::bench::no_escpae_regex                ... bench:         104 ns/iter (+/- 8)
@@ -89,10 +88,10 @@ test escape::bench::no_escape_std_replace          ... bench:         279 ns/ite
 test escape::bench::to_escape_std_replace          ... bench:         560 ns/iter (+/- 37)
 ```
 So our implementation is ~2 times better in escaping but make 2.5 times worse in **no escape** scenario compare to regex. That is unacceptable as escape case would be rather rare.
-</details>
 
-## So let's just call replace only if needed (second impl)
-```
+
+### So let's just call replace only if needed (second impl)
+```rust
 #[inline]
 fn escape_with_contains_replace(s: String) -> String {
     let s = if s.contains("=") {
@@ -124,10 +123,10 @@ test escape::bench::to_escape_std_contains_replace ... bench:         592 ns/ite
 ```
 First of all I am not sure this benches are correct since there is `clone()` call in every iteration. But we are doing slightly better in **no escape** scenario but still 2 times worse than regex.
 
-## Third approach
-The [second answer](https://stackoverflow.com/a/34610817/5190508) on our question in stack overflow suggest nice solution. Let's just iterate and collect it into string.
+### Third approach
+The [second answer](https://stackoverflow.com/a/34610817/5190508) for question on stack overflow suggest nice solution. Let's just iterate and collect it into string.
 
-```
+```rust
 fn escape_map_collect(s: String) {
     s.chars()
         .map(|c| match c {
@@ -135,7 +134,7 @@ fn escape_map_collect(s: String) {
             ',' => r#"\,"#,
             ' ' => r#"\ "#,
             c => c.as_str(), // unfortunately we can't represent char as &str.
-                             // c => c.to_string().as_str() // lifetime problem
+                             // c => c.to_string().as_str() // lifetime issue
         })
         .collect()
 }
@@ -144,7 +143,7 @@ Unfortunately code above does not compile.
 
 So we can't change from [char] to [&str]. But we could use [`push_str`] and [`push`] methods.
 
-```
+```rust
 #[inline]
 fn escape_find_push_uo(s: &String) -> String {
     // like `String::contains` but looking for three chars at once
@@ -207,10 +206,9 @@ fn escape_find_push(s: &String) -> String {
 }
 ```
 
-<details>
-<summary> And add the benches: </summary>
+And add the benches:
 
-```
+```rust
     // skip rest of bench (..)
 
     fn no_escape_std_find_push_uo(b: &mut test::Bencher) {
@@ -236,10 +234,9 @@ fn escape_find_push(s: &String) -> String {
         b.iter(|| escape_find_push(&s))
     }
 ```
-</details>
 
-<details>
-<summary> Guess the bench results! </summary>
+Guess the bench results!
+
 ```
 test escape::bench::no_escape_std_find_push_uo     ... bench:          68 ns/iter (+/- 6)
 test escape::bench::to_escape_std_find_push_uo     ... bench:         229 ns/iter (+/- 21)
@@ -247,7 +244,6 @@ test escape::bench::to_escape_std_find_push_uo     ... bench:         229 ns/ite
 test escape::bench::no_escape_find_push            ... bench:          84 ns/iter (+/- 5)
 test escape::bench::to_escape_find_push            ... bench:         204 ns/iter (+/- 38)
 ```
-</details>
 
 Oh so we are doing slightly better in **no escape** scenario than regex and ~11 times better in **escape scenario**. That's great!
 
@@ -256,7 +252,7 @@ Are we happy with our implementation? I am not - performance is good but we stil
 - do we need both `push_str` and `push` calls?
 - do we need two ways of copy String? (`clone()` and `escaped_string.push_str(&s[..begin]`)
 
-```
+```rust
 #[inline]
 fn escape_find_push2(s: &String) -> String {
     let s_len = s.len();
@@ -283,7 +279,7 @@ fn escape_find_push2(s: &String) -> String {
 
 Now the implementation is nice and can be easy generated. So let's do this easy step:
 
-```
+```rust
 #[inline]
 fn escape<P>(is_escape_char: P, s: &String) -> String
 where
@@ -310,7 +306,7 @@ where
 Will generated version be as good as our `escape_find_push2()`? Of course - Rust is zero cost abstraction!
 
 But let's bench it!
-```
+```rust
     #[bench]
     fn no_escape_general(b: &mut test::Bencher) {
         let s = String::from(NO_ESCAPE);
@@ -347,7 +343,7 @@ test escape::bench::no_escape_general              ... bench:          83 ns/ite
 test escape::bench::to_escape_general              ... bench:         202 ns/iter (+/- 15)
 ```
 
-### All benches
+## All benches
 rust version: 1.43.0-nightly (2890b37b8 2020-03-06)
 ```
 test escape::bench::no_escpae_regex                ... bench:         104 ns/iter (+/- 8)
@@ -372,7 +368,7 @@ test escape::bench::no_escape_general              ... bench:          83 ns/ite
 test escape::bench::to_escape_general              ... bench:         202 ns/iter (+/- 15)
 ```
 
-### Conclusions
+## Conclusions
 
 - `replace()` called many times in a row is ~~not~~ optimal. ~~What make me a little surprised - since it is marked with`#[inline]` according to doc.~~ See edit.
 - it's quite easy to implement own escape function with just std
@@ -380,10 +376,9 @@ test escape::bench::to_escape_general              ... bench:         202 ns/ite
 
 
 ## Edit
-<details>
-<summary> Two days later I discovered that implementation of `no_escpe_std_replace` and `to_escpe_std_replace` wasn't done correct. Can you found how we can make it better?; </summary>
+Two days later I discovered that implementation of `no_escpe_std_replace` and `to_escpe_std_replace` was not done correctly. Can you found how we can make it better?
 
-```
+```rust
 #[inline]
 fn escape_with_replace2(s: &String) -> String {
     s.replace('=', r#"\="#)
@@ -392,7 +387,7 @@ fn escape_with_replace2(s: &String) -> String {
 }
 ```
 
-So the difference is `char` vs `&str` for matches
+So the difference is `char` vs `&str` for matches (`"="` => `'='` etc.).
 
 And bench results:
 ```
@@ -401,7 +396,7 @@ test escape::bench::to_escape_std_replace2         ... bench:         401 ns/ite
 ```
 
 If I would found it earlier I will not write this blog post since std version is good enough!.
-</details>
+
 
 
 [String doc]:https://doc.rust-lang.org/std/string/struct.String.html

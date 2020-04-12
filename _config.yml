@@ -21,7 +21,7 @@ description: Learning Rust 🦀 and English!
 # List of links in the navigation bar
 navbar-links:
   About Me: "aboutme"
-  Resources:
+  Good links:
     - 🦀 Cheat Sheet: https://cheats.rs/
     - Template for crates-io lib: https://github.com/xoac/crates-io-lib-template
 
